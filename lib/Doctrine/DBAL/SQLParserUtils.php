@@ -21,6 +21,9 @@
 namespace Doctrine\DBAL;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Types\Type;
+use PDO;
 
 /**
  * Utility class that parses sql statements with regard to types and parameters.
@@ -180,6 +183,63 @@ class SQLParserUtils
         }
 
         return array($query, $paramsOrd, $typesOrd);
+    }
+
+    /**
+     * For a positional query this method can rewrite the sql statement with regard to array parameters.
+     *
+     * @param string           $query    The SQL query to interpolate.
+     * @param array            $params   The parameters to bind to the query.
+     * @param array            $types    The types the previous parameters are in.
+     * @param AbstractPlatform $platform The types the previous parameters are in.
+     *
+     * @throws SQLParserUtilsException
+     * @return string
+     */
+    static public function interpolateQuery($query, $params, $types, AbstractPlatform $platform)
+    {
+        list($query, $params, $types) = static::expandListParameters($query, $params, $types);
+
+        $values = array();
+        foreach ($params as $key => $value) {
+            $type = isset($types[$key]) ? $types[$key] : PDO::PARAM_STR;
+
+            if (is_string($type)) {
+                $type = Type::getType($type);
+            }
+
+            if ($type instanceof Type) {
+                $value = $type->convertToDatabaseValue($value, $platform);
+                $type = $type->getBindingType();
+            } else {
+                $type = $type; // PDO::PARAM_* constants
+            }
+
+            switch ($type) {
+                case PDO::PARAM_BOOL:
+                    $values[] = (int) $value;
+                    break;
+                case PDO::PARAM_INT:
+                    $values[] = $value;
+                    break;
+                case PDO::PARAM_NULL:
+                    $values[] = 'NULL';
+                    break;
+                default:
+                    $values[] = $platform->quoteSingleIdentifier($value);
+            }
+        }
+
+        $positions = static::getPlaceholderPositions($query);
+        $sql = '';
+        $start = 0;
+        foreach ($positions as $index => $position) {
+            $sql .= substr($query, $start, $position - $start).$values[$index];
+            $start = $position + 1;
+        }
+        $sql .= substr($query, $start);
+
+        return $sql;
     }
 
     /**

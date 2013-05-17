@@ -344,6 +344,57 @@ SQLDATA
     }
 
     /**
+     * @dataProvider dataInterpolateQuery
+     */
+    public function testInterpolateQuery($query, $params, $types, $platform, $sql)
+    {
+        $this->assertEquals($sql, SQLParserUtils::interpolateQuery($query, $params, $types, $platform));
+    }
+
+    public function dataInterpolateQuery()
+    {
+        $platform = $this->getMockForAbstractClass('Doctrine\DBAL\Platforms\AbstractPlatform');
+
+        return array(
+            array(
+                'SELECT * FROM foo',
+                array(),
+                array(),
+                $platform,
+                'SELECT * FROM foo'
+            ),
+            array(
+                'SELECT * FROM foo WHERE bar = ?',
+                array(1),
+                array('integer'),
+                $platform,
+                'SELECT * FROM foo WHERE bar = 1'
+            ),
+            array(
+                'SELECT * FROM foo WHERE bar = :foo',
+                array('foo'=>'foo'),
+                array('string'),
+                $platform,
+                'SELECT * FROM foo WHERE bar = "foo"'
+            ),
+            array(
+                "SELECT * FROM Foo WHERE foo IN (:arg) AND NOT bar IN (:arg)",
+                array('arg'=>array(1, 2, 3)),
+                array('arg'=>Connection::PARAM_INT_ARRAY),
+                $platform,
+                'SELECT * FROM Foo WHERE foo IN (1, 2, 3) AND NOT bar IN (1, 2, 3)'
+            ),
+            array(
+                "SELECT * FROM Foo WHERE foo = :foo OR bar = :bar",
+                array(':foo' => 'foo', ':bar' => 'bar'),
+                array(':foo' => \PDO::PARAM_STR),
+                $platform,
+                'SELECT * FROM Foo WHERE foo = "foo" OR bar = "bar"',
+            ),
+        );
+    }
+
+    /**
      * @dataProvider dataQueryWithMissingParameters
      */
     public function testExceptionIsThrownForMissingParam($query, $params, $types = array())

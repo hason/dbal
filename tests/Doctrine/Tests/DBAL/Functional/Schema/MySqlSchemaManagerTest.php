@@ -117,4 +117,23 @@ class MySqlSchemaManagerTest extends SchemaManagerFunctionalTestCase
         $this->assertFalse($table->hasPrimaryKey());
         $this->assertFalse($table->getColumn('id')->getAutoincrement());
     }
+
+    public function testColumnCollation()
+    {
+        $table = new Table('test_collation');
+        $table->addOption('collate', $collation = 'latin1_swedish_ci');
+        $table->addOption('charset', 'latin1');
+        $table->addColumn('id', 'integer');
+        $table->addColumn('text', 'text');
+        $table->addColumn('foo', 'text')->setPlatformOption('collation', 'latin1_swedish_ci');
+        $table->addColumn('bar', 'text')->setPlatformOption('collation', 'utf8_general_ci');
+        $this->_sm->dropAndCreateTable($table);
+
+        $columns = $this->_sm->listTableColumns('test_collation');
+
+        $this->assertArrayNotHasKey('collation', $columns['id']->getPlatformOptions());
+        $this->assertEquals('latin1_swedish_ci', $columns['text']->getPlatformOption('collation'));
+        $this->assertEquals('latin1_swedish_ci', $columns['foo']->getPlatformOption('collation'));
+        $this->assertEquals('utf8_general_ci', $columns['bar']->getPlatformOption('collation'));
+    }
 }

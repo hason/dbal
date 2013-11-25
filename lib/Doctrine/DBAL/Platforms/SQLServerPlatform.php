@@ -143,6 +143,14 @@ class SQLServerPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
+    public function supportsColumnCollation()
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function hasNativeGuidType()
     {
         return true;
@@ -1381,14 +1389,6 @@ class SQLServerPlatform extends AbstractPlatform
 
     /**
      * {@inheritdoc}
-     */
-    public function getColumnCollationDeclarationSQL($collation)
-    {
-        return 'COLLATE ' . $collation;
-    }
-
-    /**
-     * {@inheritdoc}
      *
      * Modifies column declaration order as it differs in Microsoft SQL Server.
      */
@@ -1397,8 +1397,8 @@ class SQLServerPlatform extends AbstractPlatform
         if (isset($field['columnDefinition'])) {
             $columnDef = $this->getCustomTypeDeclarationSQL($field);
         } else {
-            $collation = (isset($field['collate']) && $field['collate']) ?
-                ' ' . $this->getColumnCollationDeclarationSQL($field['collate']) : '';
+            $collation = (isset($field['collation']) && $field['collation']) ?
+                ' ' . $this->getColumnCollationDeclarationSQL($field['collation']) : '';
 
             $notnull = (isset($field['notnull']) && $field['notnull']) ? ' NOT NULL' : '';
 
